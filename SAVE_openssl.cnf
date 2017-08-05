@@ -1,0 +1,82 @@
+#openSSL configuration file.
+#
+ 
+# Establish working directory.
+ 
+dir					= CA_BASE_DIR
+ 
+[ ca ]
+default_ca				= CA_default
+ 
+[ CA_default ]
+serial					= $dir/serial
+database				= $dir/certindex.txt
+new_certs_dir				= $dir/certs
+certificate				= $dir/cacert.pem
+private_key				= $dir/private/cakey.pem
+default_days				= 365
+default_md				= md5
+preserve				= no
+email_in_dn				= no
+nameopt					= default_ca
+certopt					= default_ca
+# gdw -- debug to get SAN added
+####copy_extensions				= copy
+policy					= policy_match
+ 
+[ policy_match ]
+countryName				= match
+stateOrProvinceName			= match
+organizationName			= match
+organizationalUnitName			= optional
+commonName				= supplied
+emailAddress				= optional
+ 
+[ req ]
+default_bits				= 2048				# Size of keys
+default_keyfile				= $dir/private/cakey.pem	# name of generated keys
+default_md				= sha256			# message digest algorithm
+string_mask				= nombstr			# permitted characters
+distinguished_name			= req_distinguished_name
+x509_extensions				= v3_ca
+req_extensions				= v3_req
+# gdw -- debug to get SAN added 
+#####issuerAltName				= issuer:copy
+ 
+[ req_distinguished_name ]
+# Variable name				Prompt string
+#-------------------------	  ----------------------------------
+0.organizationName			= Demo Org
+organizationalUnitName			= Engineering
+emailAddress				= demo.engineering@demo.org
+emailAddress_max			= 40
+localityName				= Raleigh
+stateOrProvinceName			= NC
+countryName				= US
+countryName_min				= 2
+countryName_max				= 2
+commonName				= Demo Root Certificate Authority #Common Name (hostname, IP, or your name)
+commonName_max				= 64
+ 
+# Default values for the above, for consistency and less typing.
+# Variable name				Value
+#------------------------	  ------------------------------
+0.organizationName_default		= Demo Org
+localityName_default			= Raleigh
+stateOrProvinceName_default		= NC
+countryName_default			= US
+ 
+[ v3_ca ]
+basicConstraints			= CA:TRUE
+subjectKeyIdentifier			= hash
+authorityKeyIdentifier			= keyid:always,issuer:always
+subjectAltName				= @alt_names
+ 
+[ v3_req ]
+basicConstraints			= CA:TRUE
+#basicConstraints			= CA:FALSE
+subjectKeyIdentifier			= hash
+
+[alt_names]
+DNS.1					= broker-amq-tcp-ssl-amq-demo-secure.192.168.99.100.xip.io
+IP.1					= 192.168.99.100
