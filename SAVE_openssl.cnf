@@ -78,5 +78,7 @@ basicConstraints			= CA:TRUE
 subjectKeyIdentifier			= hash
 
 [alt_names]
-DNS.1					= broker-amq-tcp-ssl-amq-demo-secure.192.168.99.100.xip.io
-IP.1					= 192.168.99.100
+DNS.1					= aqs.org
+IP.1					= 127.0.0.1
+IP.2					= 10.0.2.15
+

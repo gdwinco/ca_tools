@@ -54,15 +54,13 @@ CA_OU="ENGINEERING"
 CA_CN="PROGRAM_X"
 CA_O="Demo CA"
 
-# -dname CN=rhel_${PREFIX}, OU=${CLIENT_OU}, O=${CLIENT_O}, L=${CLIENT_L}, S=${CLIENT_S}, C=US
-CLIENT_C=$CA_C
-CLIENT_ST=$CA_ST
-CLIENT_L=$CA_L
-CLIENT_OU=$CA_OU
-CLIENT_OU2=Personnel
-CLIENT_O=$CA_O
-#CLIENT_CN="RHEL_"${PREFIX}
-CLIENT_CN="rhel_"${PREFIX}
+# -dname CN=rhel_${PREFIX}, OU=${SERVER_OU}, O=${SERVER_O}, L=${SERVER_L}, S=${SERVER_S}, C=US
+SERVER_C=$CA_C
+SERVER_ST=$CA_ST
+SERVER_L=$CA_L
+SERVER_OU=$CA_OU
+SERVER_O=$CA_O
+SERVER_CN="rhel_"${PREFIX}
 
 mkdir -vp $MY_CA_BASE_DIR/myCA/{certs,private}
 cd $MY_CA_BASE_DIR/myCA
@@ -121,20 +119,20 @@ keytool -file $MY_CA_BASE_DIR/myCA/cacert.pem -importcert -trustcacerts \
 keytool -v -list -keystore ${PREFIX}TrustKeystore.jks -storepass password
 
 echo "++++++++++++++++++++++++++++++++++++++"
-echo "Create Identity Keystore"
+echo "Create Server Identity Keystore"
 echo "++++++++++++++++++++++++++++++++++++++"
 
 keytool -genkey -alias ${PREFIX}alias -keyalg RSA -sigalg SHA256withRSA \
  -keypass password -keystore ${PREFIX}IdentityKeystore.jks \
  -storepass password \
- -dname "CN=${CLIENT_CN}, OU=${CLIENT_OU}, OU=${CLIENT_OU2}, O=${CLIENT_O}, L=${CLIENT_L}, ST=${CLIENT_ST}, C=US"
+ -dname "CN=${SERVER_CN}, OU=${SERVER_OU}, O=${SERVER_O}, L=${SERVER_L}, ST=${SERVER_ST}, C=US"
 
 keytool -v  -list -keystore ${PREFIX}IdentityKeystore.jks -storepass password
 
 tree
 
 echo "++++++++++++++++++++++++++++++++++++++"
-echo "Create Certificate Signing Request CSR for the Identity keystore"
+echo "Create Server Certificate Signing Request CSR for the Identity keystore"
 echo "++++++++++++++++++++++++++++++++++++++"
 
 keytool -certreq -alias ${PREFIX}alias -file ${PREFIX}cert.req -keypass password \
@@ -142,20 +140,20 @@ keytool -certreq -alias ${PREFIX}alias -file ${PREFIX}cert.req -keypass password
 
 
 echo "++++++++++++++++++++++++++++++++++++++"
-echo "use openssl ca to sign jks cert request"
+echo "use openssl ca to sign Server jks cert request"
 echo "++++++++++++++++++++++++++++++++++++++"
 
 openssl ca -config myCA/openssl.conf -out ${PREFIX}cert.pem -notext \
  -md sha256 -batch -passin pass:"password" -infiles ${PREFIX}cert.req 
 
 echo "++++++++++++++++++++++++++++++++++++++"
-echo "create the cert chain "
+echo "create the Server cert chain "
 echo "++++++++++++++++++++++++++++++++++++++"
 
 cat ${PREFIX}cert.pem myCA/cacert.pem > ${PREFIX}certchain.pem
 
 echo "++++++++++++++++++++++++++++++++++++++"
-echo "import the cert chain into the Identity Trust Store "
+echo "import the Server cert chain into the Identity Trust Store "
 echo "++++++++++++++++++++++++++++++++++++++"
 keytool -import -alias ${PREFIX}alias -keypass password\
  -keystore ${PREFIX}IdentityKeystore.jks -storepass password \
@@ -164,9 +162,81 @@ keytool -import -alias ${PREFIX}alias -keypass password\
 
 keytool -v -list -keystore ${PREFIX}IdentityKeystore.jks -storepass password
 
+
 echo "********************************************************"
 echo " WARNING ... about to copy certs"
 echo "********************************************************"
 cp $MY_CA_BASE_DIR/${PREFIX}IdentityKeystore.jks ../../${PREFIX}-identity.ks
 cp $MY_CA_BASE_DIR/${PREFIX}TrustKeystore.jks ../../${PREFIX}-trust.ts
+
+echo ----
+echo ----
+echo ----
+
+# -dname CN=client_${PREFIX}, OU=${CLIENT_OU}, O=${CLIENT_O}, L=${CLIENT_L}, S=${CLIENT_S}, C=US
+CLIENT_C=$CA_C
+CLIENT_ST=$CA_ST
+CLIENT_L=$CA_L
+CLIENT_OU=$CA_OU
+CLIENT_OU2=Personnel
+CLIENT_O=$CA_O
+CLIENT_CN="client_"${PREFIX}
+
+echo "++++++++++++++++++++++++++++++++++++++"
+echo "Create Client Identity Keystore"
+echo "++++++++++++++++++++++++++++++++++++++"
+
+keytool -genkey -alias clientalias -keyalg RSA -sigalg SHA256withRSA \
+ -keypass password -keystore clientIdentityKeystore.jks \
+ -storepass password \
+ -dname "CN=${CLIENT_CN}, OU=${CLIENT_OU}, OU=${CLIENT_OU2}, O=${CLIENT_O}, L=${CLIENT_L}, ST=${CLIENT_ST}, C=US"
+
+keytool -v  -list -keystore clientIdentityKeystore.jks -storepass password
+
+tree
+
+echo "++++++++++++++++++++++++++++++++++++++"
+echo "Create Client Certificate Signing Request CSR for the Identity keystore"
+echo "++++++++++++++++++++++++++++++++++++++"
+
+keytool -certreq -alias clientalias -file clientcert.req -keypass password \
+ -keystore clientIdentityKeystore.jks -storepass password
+
+echo "++++++++++++++++++++++++++++++++++++++"
+echo "use openssl ca to sign Client jks cert request"
+echo "++++++++++++++++++++++++++++++++++++++"
+
+openssl ca -config myCA/openssl.conf -out clientcert.pem -notext \
+ -md sha256 -batch -passin pass:"password" -infiles clientcert.req 
+
+echo "++++++++++++++++++++++++++++++++++++++"
+echo "create the Client cert chain "
+echo "++++++++++++++++++++++++++++++++++++++"
+
+cat clientcert.pem myCA/cacert.pem > clientcertchain.pem
+
+echo "++++++++++++++++++++++++++++++++++++++"
+echo "import the Client cert chain into the Identity Trust Store "
+echo "++++++++++++++++++++++++++++++++++++++"
+keytool -import -alias clientalias -keypass password\
+ -keystore clientIdentityKeystore.jks -storepass password \
+ -noprompt \
+ -file clientcertchain.pem
+
+keytool -v -list -keystore clientIdentityKeystore.jks -storepass password
+
+echo "++++++++++++++++++++++++++++++++++++++"
+echo "create a PKCK12 client cert for use by Firefox"
+echo "++++++++++++++++++++++++++++++++++++++"
+keytool -importkeystore -srckeystore clientIdentityKeystore.jks \
+        -srcstorepass password \
+        -destkeystore client.p12 -deststoretype PKCS12 \
+        -deststorepass password -destkeypass password
+
+
+echo "********************************************************"
+echo "INFO  ... about to copy client certs"
+echo "********************************************************"
+cp $MY_CA_BASE_DIR/clientIdentityKeystore.jks ../../client-identity.ks
+cp $MY_CA_BASE_DIR/client.p12 ../../client.p12
 
